@@ -3,13 +3,16 @@ import * as Location from 'expo-location'
 import { Alert } from 'react-native'
 import { Center, Text, Box, useColorModeValue } from 'native-base'
 import axios from 'axios'
+import { OPENWEATHER } from '@env'
 
 export default function Current() {
   interface LocationState {
-    altitude?: number | null
-    longitude?: number | null
+    latitude?: number
+    longitude?: number
   }
+
   const [location, setLocation] = useState<LocationState>({})
+  const [geoCode, setGeoCode] = useState<Location.LocationGeocodedAddress[]|null>(null)
 
   const requestForgroundLocationPermission = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync()
@@ -31,12 +34,44 @@ export default function Current() {
       return
     }
 
-    const location = await Location.getLastKnownPositionAsync()
+    const {
+      coords: { latitude, longitude },
+    } = (await Location.getLastKnownPositionAsync()) || { coords: {} }
 
     setLocation({
-      altitude: location?.coords.altitude,
-      longitude: location?.coords.longitude,
+      latitude: latitude as number,
+      longitude: longitude as number,
     })
+
+    getCurrentWeather()
+  }
+
+  const getCurrentWeather = () => {
+    console.log(OPENWEATHER)
+    axios
+      .get('http://api.openweathermap.org/data/2.5/weather', {
+        params: {
+          lat: location.latitude,
+          lon: location.longitude,
+          units: 'metric',
+          appid: OPENWEATHER,
+        },
+      })
+      .then((res) => {
+        console.log(res.data.main)
+      })
+      .catch(() => {
+        console.log("can't get weather information")
+      })
+  }
+
+  const getLocationInformation = async () => {
+    const currentGeocode = await Location.reverseGeocodeAsync({
+      latitude: location.latitude as number,
+      longitude: location.longitude as number,
+    })
+
+    setGeoCode(currentGeocode)
   }
 
   useEffect(() => {
@@ -58,8 +93,10 @@ export default function Current() {
         Your Location
       </Text>
       <Box>
-        <Text fontSize="sm">Altitude: {JSON.stringify(location.altitude)}</Text>
-        <Text fontSize="sm">Longitude: {JSON.stringify(location.longitude)}</Text>
+        <Text fontSize="sm">Altitude: {JSON.stringify(location.latitude)}</Text>
+        <Text fontSize="sm">
+          Longitude: {JSON.stringify(location.longitude)}
+        </Text>
       </Box>
     </Center>
   )
