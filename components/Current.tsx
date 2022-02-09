@@ -47,7 +47,6 @@ export default function Current() {
   }
 
   const getCurrentWeather = () => {
-    console.log(OPENWEATHER)
     axios
       .get('http://api.openweathermap.org/data/2.5/weather', {
         params: {
@@ -58,10 +57,11 @@ export default function Current() {
         },
       })
       .then((res) => {
-        console.log(res.data.main)
+        console.log(res.data)
       })
-      .catch(() => {
+      .catch((err) => {
         console.log("can't get weather information")
+        console.log(err)
       })
   }
 
