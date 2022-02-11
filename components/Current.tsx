@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react'
 import * as Location from 'expo-location'
 import { Alert } from 'react-native'
-import { Center, Text, Box, useColorModeValue } from 'native-base'
+import {
+  Text,
+  Box,
+  useColorModeValue,
+  HStack,
+} from 'native-base'
 import axios from 'axios'
 import { OPENWEATHER } from '@env'
 
 export default function Current() {
-  interface LocationState {
-    latitude?: number
-    longitude?: number
+  interface LocationObject {
+    coords: {
+      latitude: number
+      longitude: number
+    }
   }
 
-  const [location, setLocation] = useState<LocationState>({})
-  const [geoCode, setGeoCode] = useState<Location.LocationGeocodedAddress[]|null>(null)
+  interface Weather {
+    temp: number
+  }
+
+  const [location, setLocation] = useState<LocationObject | null>(null)
+  const [weather, setWeather] = useState<Weather | null>(null)
 
   const requestForgroundLocationPermission = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync()
@@ -36,28 +47,31 @@ export default function Current() {
 
     const {
       coords: { latitude, longitude },
-    } = (await Location.getLastKnownPositionAsync()) || { coords: {} }
+    } = (await Location.getLastKnownPositionAsync()) as LocationObject
 
     setLocation({
-      latitude: latitude as number,
-      longitude: longitude as number,
+      coords: {
+        latitude,
+        longitude,
+      },
     })
-
-    getCurrentWeather()
   }
 
   const getCurrentWeather = () => {
     axios
       .get('http://api.openweathermap.org/data/2.5/weather', {
         params: {
-          lat: location.latitude,
-          lon: location.longitude,
+          lat: location?.coords.latitude,
+          lon: location?.coords.longitude,
           units: 'metric',
           appid: OPENWEATHER,
         },
       })
       .then((res) => {
-        console.log(res.data)
+        const main = res.data.main
+        setWeather({
+          temp: main.temp as number,
+        })
       })
       .catch((err) => {
         console.log("can't get weather information")
@@ -65,39 +79,41 @@ export default function Current() {
       })
   }
 
-  const getLocationInformation = async () => {
-    const currentGeocode = await Location.reverseGeocodeAsync({
-      latitude: location.latitude as number,
-      longitude: location.longitude as number,
-    })
+  const getDate = () => {
+    const date = new Date()
+    const readableDate = date.toDateString()
+    return readableDate.split(' ').slice(0, -1).join(' ')
+  }
 
-    setGeoCode(currentGeocode)
+  const init = async () => {
+    await requestForgroundLocationPermission()
+    await getCurrentWeather()
   }
 
   useEffect(() => {
-    requestForgroundLocationPermission()
+    init()
   }, [])
 
   return (
-    <Center
+    <Box
       w="80%"
       bg={useColorModeValue('light.100', 'light.700')}
       rounded="xl"
       shadow="5"
-      py="10"
+      p="5"
       m="10">
-      <Text
-        fontSize="xl"
-        fontWeight="bold"
-        color={useColorModeValue('light.700', 'light.100')}>
-        Your Location
-      </Text>
-      <Box>
-        <Text fontSize="sm">Altitude: {JSON.stringify(location.latitude)}</Text>
-        <Text fontSize="sm">
-          Longitude: {JSON.stringify(location.longitude)}
+      <HStack display="flex" justifyContent="space-between">
+        <Text fontSize="xl" fontWeight="bold">
+          Today
         </Text>
-      </Box>
-    </Center>
+        <Text fontSize="md">{getDate()}</Text>
+      </HStack>
+      <Text fontSize="4xl" fontWeight="bold" py="3">
+        { weather?.temp
+          ? weather?.temp + '℃'
+          : 'Can\'t get weather'
+        } 
+      </Text>
+    </Box>
   )
 }
